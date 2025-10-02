@@ -4,7 +4,9 @@ import { Candidate } from '@/types';
 import { getAuthFromRequest } from '@/lib/auth';
 import { ObjectId } from 'mongodb';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+// Next.js 15 may supply params as a Promise; support both shapes.
+export async function GET(req: NextRequest, ctx: { params: { id: string } } | { params: Promise<{ id: string }> }) {
+  const params = 'params' in ctx ? (ctx.params instanceof Promise ? await ctx.params : ctx.params) : { id: '' } as { id: string };
   const auth = await getAuthFromRequest(req as any);
   if (!auth || !auth.isAdmin) {
     return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });

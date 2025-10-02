@@ -20,8 +20,10 @@ function fmtDate(d?: string) {
   try { return new Date(d).toLocaleString(); } catch { return d; }
 }
 
-export default async function CandidateDetail({ params }: { params: { id: string } }) {
-  const data = await fetchCandidate(params.id);
+interface PageParams { id: string }
+export default async function CandidateDetail({ params }: { params: PageParams } | { params: Promise<PageParams> }) {
+  const p = params instanceof Promise ? await params : params;
+  const data = await fetchCandidate(p.id);
   if (!data) return notFound();
   if (!data.success) {
     return (
