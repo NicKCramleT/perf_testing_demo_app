@@ -1,4 +1,5 @@
 import { buildApiUrl } from '@/lib/baseUrl';
+import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 
 async function fetchCandidates() {
@@ -68,11 +69,26 @@ async function createCandidate(formData: FormData) {
     active: formData.get('active') === 'on',
     isAdmin: formData.get('isAdmin') === 'on'
   };
-  await fetch(buildApiUrl('/api/admin/candidates'), {
+  // Forward the candidate JWT so the admin API authorizes the request
+  let token: string | undefined;
+  try {
+    const c: any = await cookies();
+    token = typeof c.get === 'function' ? c.get('candidate_jwt')?.value : undefined;
+  } catch { token = undefined; }
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const res = await fetch(buildApiUrl('/api/admin/candidates'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(payload)
   });
+  if (!res.ok) {
+    let msg = 'Failed to create candidate';
+    try { const j = await res.json(); if (j?.error) msg = j.error; } catch {}
+    throw new Error(msg);
+  }
+  // refresh the listing on this page
+  revalidatePath('/admin');
 }
 
 function CreateCandidateForm() {
